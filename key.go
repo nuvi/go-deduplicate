@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) getKey(key KEY_TYPE) (string, error) {
+func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) getKeyStr(key KEY_TYPE) (string, error) {
 	bytes, err := json.Marshal(key)
 	if err != nil {
 		return "", err

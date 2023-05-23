@@ -10,7 +10,8 @@ import (
 )
 
 type TaskPool[KEY_TYPE comparable, VALUE_TYPE any] struct {
-	db *gorm.DB
+	db     *gorm.DB
+	getter func(KEY_TYPE) (VALUE_TYPE, error)
 
 	pendingTaskBatcher   *dataloader.QueryBatcher[string, PendingTask]
 	completedTaskBatcher *dataloader.QueryBatcher[string, CompletedTask]
@@ -41,6 +42,7 @@ func NewTaskPool[KEY_TYPE comparable, VALUE_TYPE any](
 
 	toReturn := TaskPool[KEY_TYPE, VALUE_TYPE]{
 		db:         db,
+		getter:     getter,
 		pendingTTL: pendingTTL,
 		valueTTL:   valueTTL,
 		getterName: getFunctionName(getter),

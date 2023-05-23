@@ -29,7 +29,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) getPendingTasks(keys []string) (map[st
 	return unicycle.KeyBy(pendingTasks, func(pt PendingTask) string { return pt.Key }), nil
 }
 
-func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) createPendingTask(key string, pendingTTL time.Duration) error {
+func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) createPendingTask(key string) error {
 	result := tp.db.Create(&PendingTask{
 		Key: key,
 	})
@@ -39,7 +39,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) createPendingTask(key string, pendingT
 			if err != nil {
 				return err
 			}
-			if pendingTask.CreatedAt.Before(time.Now().Add(-pendingTTL)) {
+			if pendingTask.CreatedAt.Before(time.Now().Add(-tp.pendingTTL)) {
 				return errPendingTimeout
 			}
 			return errPendingStarted
