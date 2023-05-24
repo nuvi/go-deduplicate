@@ -3,10 +3,12 @@ package deduplicate
 import (
 	"math/rand"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/nuvi/go-dockerdb"
+	"github.com/preston-wagner/unicycle"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -37,6 +39,21 @@ func slowTask(input SlowInput) (SlowOutput, error) {
 	}, nil
 }
 
+func deduplicationTester[KEY_TYPE comparable, VALUE_TYPE any](t *testing.T, getter func(KEY_TYPE) (VALUE_TYPE, error)) func(KEY_TYPE) (VALUE_TYPE, error) {
+	calledKeys := unicycle.Set[KEY_TYPE]{}
+	lock := &sync.RWMutex{}
+	return func(key KEY_TYPE) (VALUE_TYPE, error) {
+		lock.Lock()
+		if calledKeys.Has(key) {
+			t.Error("deduplicationTester found that key", key, "was passed to a getter more than once!")
+		} else {
+			calledKeys.Add(key)
+		}
+		lock.Unlock()
+		return getter(key)
+	}
+}
+
 func TestGormGetter(t *testing.T) {
 	container, connectURL := dockerdb.SetupSuite()
 	defer dockerdb.StopContainer(container)
@@ -48,9 +65,24 @@ func TestGormGetter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	slowTaskPool, err := NewTaskPool(
+	deduplicationTrackingTask := deduplicationTester(t, slowTask)
+
+	slowTaskPool1, err := NewTaskPool(
 		db,
-		slowTask,
+		deduplicationTrackingTask,
+		time.Second*10,
+		time.Minute,
+		3,
+		9999,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// separate pool to simulate a second pod
+	slowTaskPool2, err := NewTaskPool(
+		db,
+		deduplicationTrackingTask,
 		time.Second*10,
 		time.Minute,
 		3,
@@ -61,17 +93,57 @@ func TestGormGetter(t *testing.T) {
 	}
 
 	// test that the "query" is only made once
-	res1, err := slowTaskPool.Load(SlowInput{ID: "7"})
-	if err != nil {
-		t.Fatal(err)
+	promissories := unicycle.AwaitAll(
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			return slowTaskPool1.Load(SlowInput{ID: "7"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			return slowTaskPool2.Load(SlowInput{ID: "7"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			return slowTaskPool1.Load(SlowInput{ID: "7"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			return slowTaskPool2.Load(SlowInput{ID: "7"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			return slowTaskPool1.Load(SlowInput{ID: "7"})
+		}),
+	)
+
+	for _, prm := range promissories {
+		if prm.Err != nil {
+			t.Fatal(err)
+		}
 	}
-	res2, err := slowTaskPool.Load(SlowInput{ID: "7"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, res1, res2)
+
+	assert.Equal(t, promissories[0].Value.ID, "7")
+	assert.Equal(t, promissories[0].Value.OtherId, 7)
+	assert.Equal(t, promissories[0].Value, promissories[1].Value)
+	assert.Equal(t, promissories[0].Value, promissories[2].Value)
+	assert.Equal(t, promissories[0].Value, promissories[3].Value)
+	assert.Equal(t, promissories[0].Value, promissories[4].Value)
 
 	// test that errors in the getter are returned correctly
-	_, err = slowTaskPool.Load(SlowInput{ID: "bad"})
+	_, err = slowTaskPool1.Load(SlowInput{ID: "bad"})
 	assert.Error(t, err)
+
+	// test that the "query" is only made once even when it returns an error
+	unicycle.AwaitAll(
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			return slowTaskPool1.Load(SlowInput{ID: "bad"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			return slowTaskPool2.Load(SlowInput{ID: "bad"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			return slowTaskPool1.Load(SlowInput{ID: "bad"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			return slowTaskPool2.Load(SlowInput{ID: "bad"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			return slowTaskPool1.Load(SlowInput{ID: "bad"})
+		}),
+	)
 }

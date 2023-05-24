@@ -144,7 +144,7 @@ github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/preston-wagner/go-dataloader v0.3.0
+# github.com/preston-wagner/go-dataloader v0.3.1
 ## explicit; go 1.19
 github.com/preston-wagner/go-dataloader
 github.com/preston-wagner/go-dataloader/gorm
