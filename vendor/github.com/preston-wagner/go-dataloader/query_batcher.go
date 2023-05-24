@@ -62,7 +62,7 @@ func (batcher *QueryBatcher[KEY_TYPE, VALUE_TYPE]) batchRequests(maxBatchSize in
 			}
 		} else if len(pendingBatch) < maxBatchSize {
 			// add new queries to pending or send pending to be executed as available
-			select {
+			select { // this first non-blocking select makes the loop prioritize adding to the pending batch
 			case incomingQuery := <-batcher.incoming:
 				pendingBatch.addToBatch(incomingQuery)
 			default: // makes the above read non-blocking
