@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/nuvi/go-dockerdb v0.0.0-20230227224549-1fcd59c208de
-	github.com/preston-wagner/go-dataloader v0.3.1
+	github.com/preston-wagner/go-dataloader v0.3.2
 	github.com/preston-wagner/unicycle v0.2.4
 	github.com/stretchr/testify v1.8.3
 	gorm.io/driver/postgres v1.5.2
