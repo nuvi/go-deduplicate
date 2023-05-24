@@ -20,6 +20,6 @@ analytics, err := pool.Load("http://foo.bar/img.png")
 ```
 
 ## caveats
-Both `KEY_TYPE` AND `VALUE_TYPE` must be marshallable to json.
+Both `KEY_TYPE` AND `VALUE_TYPE` (that is, the argument accepted by the `getter` function and the value it returns) must be marshallable to json.
 
 If you change the function signature of the "getter" function (including editing fields on the key/value types), you should also change the name of the function so that deduplicate doesn't try to load data using the old signature when starting the new pod.
