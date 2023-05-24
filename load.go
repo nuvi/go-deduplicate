@@ -31,6 +31,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 	// check if success in database
 	value, err = tp.getCompletedTask(keyStr)
 	if err == nil {
+		go tp.completedCache.Add(key, value)
 		return value, nil
 	} else if !errors.Is(err, dataloader.ErrMissingResponse) {
 		return unicycle.ZeroValue[VALUE_TYPE](), err
@@ -39,6 +40,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 	// check if failure in database
 	err = tp.getFailedTask(keyStr)
 	if err != nil {
+		go tp.failureCache.Add(key, err)
 		return unicycle.ZeroValue[VALUE_TYPE](), err
 	}
 
