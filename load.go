@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/preston-wagner/go-dataloader"
 	"github.com/preston-wagner/unicycle"
-	"gorm.io/gorm"
 )
 
 // this allows us to make sure expensive tasks are only ever run once, across all pods
@@ -18,8 +18,10 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 
 	// check if task has already succeeded
 	value, err := tp.getCompletedTask(keyStr)
-	if (err == nil) || (!errors.Is(err, gorm.ErrRecordNotFound)) {
-		return value, err
+	if err == nil {
+		return value, nil
+	} else if !errors.Is(err, dataloader.ErrMissingResponse) {
+		return unicycle.ZeroValue[VALUE_TYPE](), err
 	}
 
 	// check if task has already failed

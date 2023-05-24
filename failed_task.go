@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"gorm.io/gorm"
+	"github.com/preston-wagner/go-dataloader"
 )
 
 type FailedTask struct {
@@ -19,13 +19,12 @@ func (ft FailedTask) Error() string {
 }
 
 func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) getFailedTask(keyStr string) error {
-	var failedTask FailedTask
-	result := tp.db.Where("key = ?", keyStr).Take(&failedTask)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	failedTask, err := tp.failedTaskBatcher.Load(keyStr)
+	if err != nil {
+		if errors.Is(err, dataloader.ErrMissingResponse) {
 			return nil
 		}
-		return result.Error
+		return err
 	}
 	return failedTask
 }

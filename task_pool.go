@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/preston-wagner/go-dataloader"
+	"github.com/preston-wagner/go-dataloader/gorm"
 	"github.com/preston-wagner/unicycle"
 	"gorm.io/gorm"
 )
@@ -48,9 +49,21 @@ func NewTaskPool[KEY_TYPE comparable, VALUE_TYPE any](
 		getterName: getFunctionName(getter),
 	}
 
-	toReturn.pendingTaskBatcher = dataloader.NewQueryBatcher(toReturn.getPendingTasks, maxConcurrentBatches, maxBatchSize)
-	// toReturn.completedTaskBatcher = dataloader.NewQueryBatcher(toReturn.getCompletedTasks, maxConcurrentBatches, maxBatchSize)
-	// toReturn.failedTaskBatcher = dataloader.NewQueryBatcher(toReturn.getFailedTasks, maxConcurrentBatches, maxBatchSize)
+	toReturn.pendingTaskBatcher = dataloader.NewQueryBatcher(
+		gormLoader.GormGetter[string, PendingTask](db, "key", func(task PendingTask) string { return task.Key }),
+		maxConcurrentBatches,
+		maxBatchSize,
+	)
+	toReturn.completedTaskBatcher = dataloader.NewQueryBatcher(
+		gormLoader.GormGetter[string, CompletedTask](db, "key", func(task CompletedTask) string { return task.Key }),
+		maxConcurrentBatches,
+		maxBatchSize,
+	)
+	toReturn.failedTaskBatcher = dataloader.NewQueryBatcher(
+		gormLoader.GormGetter[string, FailedTask](db, "key", func(task FailedTask) string { return task.Key }),
+		maxConcurrentBatches,
+		maxBatchSize,
+	)
 
 	unicycle.Repeat(toReturn.reap, valueTTL/4, true)
 
