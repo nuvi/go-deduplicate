@@ -14,14 +14,18 @@ type TaskPool[KEY_TYPE comparable, VALUE_TYPE any] struct {
 	db     *gorm.DB
 	getter func(KEY_TYPE) (VALUE_TYPE, error)
 
+	pendingTTL time.Duration
+	valueTTL   time.Duration
+
+	completedCache *expiringMemoryCache[KEY_TYPE, VALUE_TYPE]
+	failureCache   *expiringMemoryCache[KEY_TYPE, error]
+
 	pendingTaskBatcher   *dataloader.QueryBatcher[string, PendingTask]
 	completedTaskBatcher *dataloader.QueryBatcher[string, CompletedTask]
 	failedTaskBatcher    *dataloader.QueryBatcher[string, FailedTask]
 
-	pendingTTL time.Duration
-	valueTTL   time.Duration
-
 	getterName string
+	canceller  func()
 }
 
 func NewTaskPool[KEY_TYPE comparable, VALUE_TYPE any](
@@ -42,30 +46,35 @@ func NewTaskPool[KEY_TYPE comparable, VALUE_TYPE any](
 	}
 
 	toReturn := TaskPool[KEY_TYPE, VALUE_TYPE]{
-		db:         db,
-		getter:     getter,
+		db:     db,
+		getter: getter,
+
 		pendingTTL: pendingTTL,
 		valueTTL:   valueTTL,
+
+		completedCache: newMemoryCache[KEY_TYPE, VALUE_TYPE](valueTTL),
+		failureCache:   newMemoryCache[KEY_TYPE, error](valueTTL),
+
 		getterName: getFunctionName(getter),
 	}
 
 	toReturn.pendingTaskBatcher = dataloader.NewQueryBatcher(
-		gormLoader.GormGetter[string, PendingTask](db, "key", func(task PendingTask) string { return task.Key }),
+		gormLoader.GormGetter(db, "key", func(task PendingTask) string { return task.Key }),
 		maxConcurrentBatches,
 		maxBatchSize,
 	)
 	toReturn.completedTaskBatcher = dataloader.NewQueryBatcher(
-		gormLoader.GormGetter[string, CompletedTask](db, "key", func(task CompletedTask) string { return task.Key }),
+		gormLoader.GormGetter(db, "key", func(task CompletedTask) string { return task.Key }),
 		maxConcurrentBatches,
 		maxBatchSize,
 	)
 	toReturn.failedTaskBatcher = dataloader.NewQueryBatcher(
-		gormLoader.GormGetter[string, FailedTask](db, "key", func(task FailedTask) string { return task.Key }),
+		gormLoader.GormGetter(db, "key", func(task FailedTask) string { return task.Key }),
 		maxConcurrentBatches,
 		maxBatchSize,
 	)
 
-	unicycle.Repeat(toReturn.reap, valueTTL/4, true)
+	toReturn.canceller = unicycle.Repeat(toReturn.reap, valueTTL/4, true)
 
 	return &toReturn, nil
 }
@@ -84,4 +93,10 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) reap() {
 	if dbc.Error != nil {
 		log.Printf("error clearing expired failed task cache: %v", dbc.Error)
 	}
+}
+
+func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Close() {
+	tp.canceller()
+	tp.completedCache.Close()
+	tp.failureCache.Close()
 }

@@ -1,5 +1,5 @@
 # deduplicate
-Sometimes, when building large distributed systems, you want an efficient way to ensure that expensive requests (such as to 3rd-party services) are only made once for a given piece of data. By coordinating work via a shared database and in-memory caching, this library allows the developer to only worry 
+Sometimes, when building large distributed systems, you want an efficient way to ensure that expensive requests (such as to 3rd-party services) are only made once for a given piece of data. By coordinating work via a shared database and in-memory caching, this library allows the developer to only worry about implementing the actual request. 
 
 ## usage
 ```go
@@ -7,7 +7,7 @@ func getMediaAnalytics(url string) (Analytics, error){
   ...
 }
 
-const	pendingTTL = time.Minute
+const pendingTTL = time.Minute
 const valueTTL = time.Hour * 24 * 7
 const maxConcurrentBatches = 3
 const maxBatchSize = 9999

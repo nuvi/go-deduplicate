@@ -29,16 +29,14 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) getFailedTask(keyStr string) error {
 	return failedTask
 }
 
-func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) createFailedTask(key string, prior error) error {
-	failedTask := FailedTask{Key: key, ErrorString: prior.Error()}
-	result := tp.db.Create(&failedTask)
+func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) createFailedTask(keyStr string, prior error) {
+	result := tp.db.Create(&FailedTask{
+		Key:         keyStr,
+		CreatedAt:   time.Now(),
+		ErrorString: prior.Error(),
+	})
 	if result.Error != nil {
-		return result.Error
+		log.Println(result.Error)
 	}
-
-	if err := tp.deletePendingTask(key); err != nil {
-		log.Println(err)
-	}
-
-	return failedTask
+	tp.deletePendingTask(keyStr)
 }

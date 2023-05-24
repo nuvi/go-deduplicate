@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type SlowInput struct {
@@ -40,7 +41,9 @@ func TestGormGetter(t *testing.T) {
 	container, connectURL := dockerdb.SetupSuite()
 	defer dockerdb.StopContainer(container)
 
-	db, err := gorm.Open(postgres.Open(connectURL))
+	db, err := gorm.Open(postgres.Open(connectURL), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
