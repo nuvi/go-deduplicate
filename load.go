@@ -48,7 +48,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 	err = tp.createPendingTask(keyStr)
 	if err != nil {
 		if errors.Is(err, errPendingStarted) { // if the task is already pending, wait on result
-			return tp.awaitPendingTask(key)
+			return tp.awaitPendingTask(keyStr, key)
 		}
 		return unicycle.ZeroValue[VALUE_TYPE](), err
 	}
@@ -65,14 +65,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 	}
 }
 
-// this allows us to make sure expensive tasks are only ever run once, across all pods
-func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) awaitPendingTask(key KEY_TYPE) (VALUE_TYPE, error) {
-	// get canonical database key
-	keyStr, err := tp.getKeyStr(key)
-	if err != nil {
-		return unicycle.ZeroValue[VALUE_TYPE](), err
-	}
-
+func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) awaitPendingTask(keyStr string, key KEY_TYPE) (VALUE_TYPE, error) {
 	pendingTask, err := tp.getPendingTask(keyStr)
 	if err != nil {
 		return unicycle.ZeroValue[VALUE_TYPE](), err
@@ -81,6 +74,15 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) awaitPendingTask(key KEY_TYPE) (VALUE_
 	backoff := time.Second
 
 	for {
+		// check if pending task expired
+		if pendingTask.isExpired(tp.pendingTTL) {
+			return unicycle.ZeroValue[VALUE_TYPE](), errPendingTimeout
+		}
+
+		// exponential backoff before next database check
+		time.Sleep(backoff)
+		backoff *= 2
+
 		// check if success in database
 		value, err := tp.getCompletedTask(keyStr)
 		if err == nil {
@@ -96,14 +98,5 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) awaitPendingTask(key KEY_TYPE) (VALUE_
 			go tp.failureCache.Add(key, err)
 			return unicycle.ZeroValue[VALUE_TYPE](), err
 		}
-
-		// check if pending task expired
-		if pendingTask.isExpired(tp.pendingTTL) {
-			return unicycle.ZeroValue[VALUE_TYPE](), errPendingTimeout
-		}
-
-		// exponential backoff before next loop
-		time.Sleep(backoff)
-		backoff *= 2
 	}
 }
