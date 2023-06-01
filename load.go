@@ -47,9 +47,8 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 	// if none of the above are true, start a new task
 	err = tp.createPendingTask(keyStr)
 	if err != nil {
-		if errors.Is(err, errPendingStarted) { // if the task is already pending, wait and retry
-			time.Sleep(time.Second)
-			return tp.Load(key)
+		if errors.Is(err, errPendingStarted) { // if the task is already pending, wait on result
+			return tp.awaitPendingTask(keyStr, key)
 		}
 		return unicycle.ZeroValue[VALUE_TYPE](), err
 	}
@@ -63,5 +62,41 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 		go tp.completedCache.Add(key, value)
 		go tp.createCompletedTask(keyStr, value)
 		return value, nil
+	}
+}
+
+func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) awaitPendingTask(keyStr string, key KEY_TYPE) (VALUE_TYPE, error) {
+	pendingTask, err := tp.getPendingTask(keyStr)
+	if err != nil {
+		return unicycle.ZeroValue[VALUE_TYPE](), err
+	}
+
+	backoff := time.Second
+
+	for {
+		// check if pending task expired
+		if pendingTask.isExpired(tp.pendingTTL) {
+			return unicycle.ZeroValue[VALUE_TYPE](), errPendingTimeout
+		}
+
+		// exponential backoff before next database check
+		time.Sleep(backoff)
+		backoff *= 2
+
+		// check if success in database
+		value, err := tp.getCompletedTask(keyStr)
+		if err == nil {
+			go tp.completedCache.Add(key, value)
+			return value, nil
+		} else if !errors.Is(err, dataloader.ErrMissingResponse) {
+			return unicycle.ZeroValue[VALUE_TYPE](), err
+		}
+
+		// check if failure in database
+		err = tp.getFailedTask(keyStr)
+		if err != nil {
+			go tp.failureCache.Add(key, err)
+			return unicycle.ZeroValue[VALUE_TYPE](), err
+		}
 	}
 }

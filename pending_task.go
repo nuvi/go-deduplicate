@@ -2,7 +2,6 @@ package deduplicate
 
 import (
 	"errors"
-	"log"
 	"strings"
 	"time"
 )
@@ -30,23 +29,9 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) createPendingTask(keyStr string) error
 	})
 	if result.Error != nil {
 		if strings.Contains(result.Error.Error(), "duplicate key value violates unique constraint") {
-			pendingTask, err := tp.getPendingTask(keyStr)
-			if err != nil {
-				return err
-			}
-			if pendingTask.isExpired(tp.pendingTTL) {
-				return errPendingTimeout
-			}
 			return errPendingStarted
 		}
 		return result.Error
 	}
 	return nil
-}
-
-func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) deletePendingTask(keyStr string) {
-	result := tp.db.Where("key = ?", keyStr).Delete(&PendingTask{})
-	if result.Error != nil {
-		log.Println(result.Error)
-	}
 }

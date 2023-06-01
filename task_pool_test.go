@@ -107,6 +107,15 @@ func TestGormGetter(t *testing.T) {
 			return slowTaskPool2.Load(SlowInput{ID: "7"})
 		}),
 		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			time.Sleep(time.Second)
+			return slowTaskPool1.Load(SlowInput{ID: "7"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			time.Sleep(time.Second * 2)
+			return slowTaskPool2.Load(SlowInput{ID: "7"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			time.Sleep(time.Second * 4)
 			return slowTaskPool1.Load(SlowInput{ID: "7"})
 		}),
 	)
@@ -143,6 +152,15 @@ func TestGormGetter(t *testing.T) {
 			return slowTaskPool2.Load(SlowInput{ID: "bad"})
 		}),
 		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			time.Sleep(time.Second)
+			return slowTaskPool1.Load(SlowInput{ID: "bad"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			time.Sleep(time.Second * 2)
+			return slowTaskPool2.Load(SlowInput{ID: "bad"})
+		}),
+		unicycle.WrapInPromise(func() (SlowOutput, error) {
+			time.Sleep(time.Second * 4)
 			return slowTaskPool1.Load(SlowInput{ID: "bad"})
 		}),
 	)

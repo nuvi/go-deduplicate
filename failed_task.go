@@ -38,5 +38,4 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) createFailedTask(keyStr string, prior 
 	if result.Error != nil {
 		log.Println(result.Error)
 	}
-	tp.deletePendingTask(keyStr)
 }
