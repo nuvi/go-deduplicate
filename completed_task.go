@@ -28,16 +28,14 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) createCompletedTask(keyStr string, val
 	bytes, err := json.Marshal(value)
 	if err != nil {
 		log.Println(err)
-		return
+	} else {
+		result := tp.db.Create(&CompletedTask{
+			Key:       keyStr,
+			CreatedAt: time.Now(),
+			Value:     string(bytes),
+		})
+		if result.Error != nil {
+			log.Println(result.Error)
+		}
 	}
-	result := tp.db.Create(&CompletedTask{
-		Key:       keyStr,
-		CreatedAt: time.Now(),
-		Value:     string(bytes),
-	})
-	if result.Error != nil {
-		log.Println(result.Error)
-		return
-	}
-	tp.deletePendingTask(keyStr)
 }
