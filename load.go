@@ -31,7 +31,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 	// check if success in database
 	value, err = tp.getCompletedTask(keyStr)
 	if err == nil {
-		go tp.completedCache.Add(key, value)
+		go tp.completedCache.Set(key, value)
 		return value, nil
 	} else if !errors.Is(err, dataloader.ErrMissingResponse) {
 		return unicycle.ZeroValue[VALUE_TYPE](), err
@@ -40,7 +40,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 	// check if failure in database
 	err = tp.getFailedTask(keyStr)
 	if err != nil {
-		go tp.failureCache.Add(key, err)
+		go tp.failureCache.Set(key, err)
 		return unicycle.ZeroValue[VALUE_TYPE](), err
 	}
 
@@ -55,11 +55,11 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 
 	value, err = tp.getter(key)
 	if err != nil {
-		go tp.failureCache.Add(key, err)
+		go tp.failureCache.Set(key, err)
 		go tp.createFailedTask(keyStr, err)
 		return unicycle.ZeroValue[VALUE_TYPE](), err
 	} else {
-		go tp.completedCache.Add(key, value)
+		go tp.completedCache.Set(key, value)
 		go tp.createCompletedTask(keyStr, value)
 		return value, nil
 	}
@@ -86,7 +86,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) awaitPendingTask(keyStr string, key KE
 		// check if success in database
 		value, err := tp.getCompletedTask(keyStr)
 		if err == nil {
-			go tp.completedCache.Add(key, value)
+			go tp.completedCache.Set(key, value)
 			return value, nil
 		} else if !errors.Is(err, dataloader.ErrMissingResponse) {
 			return unicycle.ZeroValue[VALUE_TYPE](), err
@@ -95,7 +95,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) awaitPendingTask(keyStr string, key KE
 		// check if failure in database
 		err = tp.getFailedTask(keyStr)
 		if err != nil {
-			go tp.failureCache.Add(key, err)
+			go tp.failureCache.Set(key, err)
 			return unicycle.ZeroValue[VALUE_TYPE](), err
 		}
 	}

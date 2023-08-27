@@ -144,12 +144,15 @@ github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
+# github.com/preston-wagner/go-cache v0.2.4
+## explicit; go 1.20
+github.com/preston-wagner/go-cache
 # github.com/preston-wagner/go-dataloader v0.3.3
 ## explicit; go 1.19
 github.com/preston-wagner/go-dataloader
 github.com/preston-wagner/go-dataloader/gorm
-# github.com/preston-wagner/unicycle v0.2.4
-## explicit; go 1.19
+# github.com/preston-wagner/unicycle v0.4.4
+## explicit; go 1.20
 github.com/preston-wagner/unicycle
 # github.com/sirupsen/logrus v1.9.0
 ## explicit; go 1.13

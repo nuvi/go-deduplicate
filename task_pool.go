@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/preston-wagner/go-cache"
 	"github.com/preston-wagner/go-dataloader"
 	"github.com/preston-wagner/go-dataloader/gorm"
 	"github.com/preston-wagner/unicycle"
@@ -17,8 +18,8 @@ type TaskPool[KEY_TYPE comparable, VALUE_TYPE any] struct {
 	pendingTTL time.Duration
 	valueTTL   time.Duration
 
-	completedCache *expiringMemoryCache[KEY_TYPE, VALUE_TYPE]
-	failureCache   *expiringMemoryCache[KEY_TYPE, error]
+	completedCache *cache.TTLCache[KEY_TYPE, VALUE_TYPE]
+	failureCache   *cache.TTLCache[KEY_TYPE, error]
 
 	pendingTaskBatcher   *dataloader.QueryBatcher[string, PendingTask]
 	completedTaskBatcher *dataloader.QueryBatcher[string, CompletedTask]
@@ -52,8 +53,8 @@ func NewTaskPool[KEY_TYPE comparable, VALUE_TYPE any](
 		pendingTTL: pendingTTL,
 		valueTTL:   valueTTL,
 
-		completedCache: newMemoryCache[KEY_TYPE, VALUE_TYPE](valueTTL),
-		failureCache:   newMemoryCache[KEY_TYPE, error](valueTTL),
+		completedCache: cache.NewTTLCache[KEY_TYPE, VALUE_TYPE](valueTTL, valueTTL/4),
+		failureCache:   cache.NewTTLCache[KEY_TYPE, error](valueTTL, valueTTL/4),
 
 		getterName: getFunctionName(getter),
 	}
@@ -97,6 +98,6 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) reap() {
 
 func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Close() {
 	tp.canceller()
-	tp.completedCache.Close()
-	tp.failureCache.Close()
+	tp.completedCache.StopReaping()
+	tp.failureCache.StopReaping()
 }
