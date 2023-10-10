@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/preston-wagner/unicycle"
+	"github.com/nuvi/unicycle/defaults"
 )
 
 type CompletedTask struct {
@@ -17,7 +17,7 @@ type CompletedTask struct {
 func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) getCompletedTask(keyStr string) (VALUE_TYPE, error) {
 	completedTask, err := tp.completedTaskBatcher.Load(keyStr)
 	if err != nil {
-		return unicycle.ZeroValue[VALUE_TYPE](), err
+		return defaults.ZeroValue[VALUE_TYPE](), err
 	}
 	var value VALUE_TYPE
 	err = json.Unmarshal([]byte(completedTask.Value), &value)

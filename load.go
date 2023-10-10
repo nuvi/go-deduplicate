@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/preston-wagner/go-dataloader"
-	"github.com/preston-wagner/unicycle"
+	"github.com/nuvi/go-dataloader"
+	"github.com/nuvi/unicycle/defaults"
 )
 
 // this allows us to make sure expensive tasks are only ever run once, across all pods
@@ -19,13 +19,13 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 	// check if failure in memory
 	err, ok := tp.failureCache.Get(key)
 	if ok {
-		return unicycle.ZeroValue[VALUE_TYPE](), err
+		return defaults.ZeroValue[VALUE_TYPE](), err
 	}
 
 	// get canonical database key
 	keyStr, err := tp.getKeyStr(key)
 	if err != nil {
-		return unicycle.ZeroValue[VALUE_TYPE](), err
+		return defaults.ZeroValue[VALUE_TYPE](), err
 	}
 
 	// check if success in database
@@ -34,14 +34,14 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 		go tp.completedCache.Set(key, value)
 		return value, nil
 	} else if !errors.Is(err, dataloader.ErrMissingResponse) {
-		return unicycle.ZeroValue[VALUE_TYPE](), err
+		return defaults.ZeroValue[VALUE_TYPE](), err
 	}
 
 	// check if failure in database
 	err = tp.getFailedTask(keyStr)
 	if err != nil {
 		go tp.failureCache.Set(key, err)
-		return unicycle.ZeroValue[VALUE_TYPE](), err
+		return defaults.ZeroValue[VALUE_TYPE](), err
 	}
 
 	// if none of the above are true, start a new task
@@ -50,14 +50,14 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 		if errors.Is(err, errPendingStarted) { // if the task is already pending, wait on result
 			return tp.awaitPendingTask(keyStr, key)
 		}
-		return unicycle.ZeroValue[VALUE_TYPE](), err
+		return defaults.ZeroValue[VALUE_TYPE](), err
 	}
 
 	value, err = tp.getter(key)
 	if err != nil {
 		go tp.failureCache.Set(key, err)
 		go tp.createFailedTask(keyStr, err)
-		return unicycle.ZeroValue[VALUE_TYPE](), err
+		return defaults.ZeroValue[VALUE_TYPE](), err
 	} else {
 		go tp.completedCache.Set(key, value)
 		go tp.createCompletedTask(keyStr, value)
@@ -68,7 +68,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) Load(key KEY_TYPE) (VALUE_TYPE, error)
 func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) awaitPendingTask(keyStr string, key KEY_TYPE) (VALUE_TYPE, error) {
 	pendingTask, err := tp.getPendingTask(keyStr)
 	if err != nil {
-		return unicycle.ZeroValue[VALUE_TYPE](), err
+		return defaults.ZeroValue[VALUE_TYPE](), err
 	}
 
 	backoff := time.Second
@@ -76,7 +76,7 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) awaitPendingTask(keyStr string, key KE
 	for {
 		// check if pending task expired
 		if pendingTask.isExpired(tp.pendingTTL) {
-			return unicycle.ZeroValue[VALUE_TYPE](), errPendingTimeout
+			return defaults.ZeroValue[VALUE_TYPE](), errPendingTimeout
 		}
 
 		// exponential backoff before next database check
@@ -89,14 +89,14 @@ func (tp *TaskPool[KEY_TYPE, VALUE_TYPE]) awaitPendingTask(keyStr string, key KE
 			go tp.completedCache.Set(key, value)
 			return value, nil
 		} else if !errors.Is(err, dataloader.ErrMissingResponse) {
-			return unicycle.ZeroValue[VALUE_TYPE](), err
+			return defaults.ZeroValue[VALUE_TYPE](), err
 		}
 
 		// check if failure in database
 		err = tp.getFailedTask(keyStr)
 		if err != nil {
 			go tp.failureCache.Set(key, err)
-			return unicycle.ZeroValue[VALUE_TYPE](), err
+			return defaults.ZeroValue[VALUE_TYPE](), err
 		}
 	}
 }

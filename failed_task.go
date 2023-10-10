@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/preston-wagner/go-dataloader"
+	"github.com/nuvi/go-dataloader"
 )
 
 type FailedTask struct {
