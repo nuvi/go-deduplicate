@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/nuvi/go-dockerdb"
-	"github.com/preston-wagner/unicycle"
+	"github.com/nuvi/unicycle/promises"
+	"github.com/nuvi/unicycle/sets"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -40,7 +41,7 @@ func slowTask(input SlowInput) (SlowOutput, error) {
 }
 
 func deduplicationTester[KEY_TYPE comparable, VALUE_TYPE any](t *testing.T, getter func(KEY_TYPE) (VALUE_TYPE, error)) func(KEY_TYPE) (VALUE_TYPE, error) {
-	calledKeys := unicycle.Set[KEY_TYPE]{}
+	calledKeys := sets.Set[KEY_TYPE]{}
 	lock := &sync.RWMutex{}
 	return func(key KEY_TYPE) (VALUE_TYPE, error) {
 		lock.Lock()
@@ -93,28 +94,28 @@ func TestGormGetter(t *testing.T) {
 	}
 
 	// test that the "query" is only made once
-	promissories := unicycle.AwaitAll(
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+	promissories := promises.AwaitAll(
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			return slowTaskPool1.Load(SlowInput{ID: "7"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			return slowTaskPool2.Load(SlowInput{ID: "7"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			return slowTaskPool1.Load(SlowInput{ID: "7"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			return slowTaskPool2.Load(SlowInput{ID: "7"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			time.Sleep(time.Second)
 			return slowTaskPool1.Load(SlowInput{ID: "7"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			time.Sleep(time.Second * 2)
 			return slowTaskPool2.Load(SlowInput{ID: "7"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			time.Sleep(time.Second * 4)
 			return slowTaskPool1.Load(SlowInput{ID: "7"})
 		}),
@@ -138,28 +139,28 @@ func TestGormGetter(t *testing.T) {
 	assert.Error(t, err)
 
 	// test that the "query" is only made once even when it returns an error
-	unicycle.AwaitAll(
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+	promises.AwaitAll(
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			return slowTaskPool1.Load(SlowInput{ID: "bad"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			return slowTaskPool2.Load(SlowInput{ID: "bad"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			return slowTaskPool1.Load(SlowInput{ID: "bad"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			return slowTaskPool2.Load(SlowInput{ID: "bad"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			time.Sleep(time.Second)
 			return slowTaskPool1.Load(SlowInput{ID: "bad"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			time.Sleep(time.Second * 2)
 			return slowTaskPool2.Load(SlowInput{ID: "bad"})
 		}),
-		unicycle.WrapInPromise(func() (SlowOutput, error) {
+		promises.WrapInPromise(func() (SlowOutput, error) {
 			time.Sleep(time.Second * 4)
 			return slowTaskPool1.Load(SlowInput{ID: "bad"})
 		}),

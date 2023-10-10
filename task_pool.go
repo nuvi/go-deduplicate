@@ -4,10 +4,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/preston-wagner/go-cache"
-	"github.com/preston-wagner/go-dataloader"
-	"github.com/preston-wagner/go-dataloader/gorm"
-	"github.com/preston-wagner/unicycle"
+	"github.com/nuvi/go-cache"
+	"github.com/nuvi/go-dataloader"
+	gormLoader "github.com/nuvi/go-dataloader/gorm"
+	"github.com/nuvi/unicycle/multithread"
 	"gorm.io/gorm"
 )
 
@@ -75,7 +75,7 @@ func NewTaskPool[KEY_TYPE comparable, VALUE_TYPE any](
 		maxBatchSize,
 	)
 
-	toReturn.canceller = unicycle.Repeat(toReturn.reap, valueTTL/4, true)
+	toReturn.canceller = multithread.Repeat(toReturn.reap, valueTTL/4, true)
 
 	return &toReturn, nil
 }

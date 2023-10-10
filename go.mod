@@ -1,12 +1,12 @@
-module github.com/preston-wagner/go-deduplicate
+module github.com/nuvi/go-deduplicate
 
 go 1.20
 
 require (
+	github.com/nuvi/go-cache v0.2.4
+	github.com/nuvi/go-dataloader v0.4.0
 	github.com/nuvi/go-dockerdb v0.0.0-20230227224549-1fcd59c208de
-	github.com/preston-wagner/go-cache v0.2.4
-	github.com/preston-wagner/go-dataloader v0.3.3
-	github.com/preston-wagner/unicycle v0.4.4
+	github.com/nuvi/unicycle v0.6.3
 	github.com/stretchr/testify v1.8.3
 	gorm.io/driver/postgres v1.5.2
 	gorm.io/gorm v1.25.1
